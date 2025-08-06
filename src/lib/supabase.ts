@@ -71,6 +71,7 @@ export interface Order {
   profiles?: {
     full_name: string;
     email: string;
+    phone?: string;
   };
 }
 
