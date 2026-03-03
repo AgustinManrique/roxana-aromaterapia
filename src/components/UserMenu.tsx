@@ -22,6 +22,13 @@ const UserMenu = () => {
   const [settingsLoading, setSettingsLoading] = useState(false);
   const [settingsError, setSettingsError] = useState('');
 
+  // Forgot password state
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotMessage, setForgotMessage] = useState('');
+  const [registrationSuccess, setRegistrationSuccess] = useState(false);
+
   const { user, userProfile, isAdmin, signIn, signUp, signOut } = useAuth();
 
   // Validation functions
@@ -88,11 +95,12 @@ const UserMenu = () => {
         const { error } = await signIn(email, password);
         if (error) throw error;
       } else {
-        // Register new user
+        // Register new user - NEVER auto sign in
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
+            emailRedirectTo: `${window.location.origin}/auth/callback`,
             data: {
               full_name: fullName.trim()
             }
@@ -104,11 +112,25 @@ const UserMenu = () => {
           throw error;
         }
         
-        console.log('Registration successful:', data);
+        // Always show confirmation message regardless of session
+        // User should NEVER be logged in immediately after signup
+        if (data.user) {
+          setError('');
+          setRegistrationSuccess(true);
+          // Auto-hide success message after 8 seconds
+          setTimeout(() => {
+            setRegistrationSuccess(false);
+            setShowAuthModal(false);
+            resetForm();
+          }, 8000);
+          return;
+        }
       }
 
-      setShowAuthModal(false);
-      resetForm();
+      if (authMode === 'login') {
+        setShowAuthModal(false);
+        resetForm();
+      }
     } catch (error) {
       console.error('Authentication error details:', {
         message: error.message,
@@ -119,6 +141,14 @@ const UserMenu = () => {
       
       if (error.message.includes('Invalid login credentials')) {
         setError('Email o contraseña incorrectos');
+      } else if (error.message.includes('Email not confirmed')) {
+        setError('Debes confirmar tu email antes de iniciar sesión. Revisa tu bandeja de entrada.');
+      } else if (error.message.includes('User already registered') || error.message.includes('already been registered')) {
+        setError('Ya existe una cuenta con este email. ¿Quieres iniciar sesión en su lugar?');
+      } else if (error.message.includes('email address is already registered')) {
+        setError('Este email ya está registrado. Intenta iniciar sesión o recuperar tu contraseña.');
+      } else if (error.message.includes('duplicate key value violates unique constraint')) {
+        setError('Ya existe una cuenta con este email.');
       } else if (error.message.includes('User already registered')) {
         setError('Ya existe una cuenta con este email');
       } else if (error.message.includes('Signup is disabled')) {
@@ -158,6 +188,7 @@ const UserMenu = () => {
     setFullName('');
     setError('');
     setValidationErrors({});
+    setRegistrationSuccess(false);
   };
 
   const resetAuthModal = () => {
@@ -225,6 +256,51 @@ const UserMenu = () => {
     setSettingsPhone('');
     setSettingsError('');
   };
+
+  const handleForgotPassword = () => {
+    setShowAuthModal(false);
+    setShowForgotPassword(true);
+    setForgotEmail(email); // Pre-fill with current email if any
+    setForgotMessage('');
+  };
+
+  const handleSendResetEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setForgotLoading(true);
+    setForgotMessage('');
+
+    try {
+      if (!forgotEmail.trim()) {
+        setForgotMessage('Por favor ingresa tu email');
+        return;
+      }
+
+      if (!validateEmail(forgotEmail)) {
+        setForgotMessage('Por favor ingresa un email válido');
+        return;
+      }
+
+      const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
+        redirectTo: `${window.location.origin}/auth/reset-password`
+      });
+
+      if (error) throw error;
+
+      setForgotMessage('✅ Te hemos enviado un email con las instrucciones para restablecer tu contraseña. Revisa tu bandeja de entrada.');
+    } catch (error) {
+      console.error('Reset password error:', error);
+      setForgotMessage(`Error: ${error.message}`);
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
+  const resetForgotPassword = () => {
+    setShowForgotPassword(false);
+    setForgotEmail('');
+    setForgotMessage('');
+  };
+
   return (
     <>
       {/* User Menu Button */}
@@ -354,6 +430,29 @@ const UserMenu = () => {
                 </div>
               )}
 
+              {registrationSuccess && (
+                <div className="mb-4 p-4 bg-green-100 dark:bg-green-900/20 border border-green-300 dark:border-green-700 text-green-700 dark:text-green-400 rounded-lg">
+                  <div className="flex items-start space-x-3">
+                    <div className="flex-shrink-0">
+                      <svg className="w-5 h-5 text-green-600 dark:text-green-400 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-medium text-green-800 dark:text-green-200 mb-1">
+                        ¡Registro exitoso! 🎉
+                      </h4>
+                      <p className="text-sm text-green-700 dark:text-green-300">
+                        Te hemos enviado un email de confirmación a <strong>{email}</strong>. 
+                        Revisa tu bandeja de entrada y haz clic en el enlace para activar tu cuenta.
+                      </p>
+                      <p className="text-xs text-green-600 dark:text-green-400 mt-2">
+                        💡 No olvides revisar la carpeta de spam si no lo encuentras
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
               <form onSubmit={handleAuth} className="space-y-4">
                 {/* Full Name - Only for registration */}
                 {authMode === 'register' && (
@@ -438,23 +537,41 @@ const UserMenu = () => {
                 )}
                 <button
                   type="submit"
-                  disabled={loading}
+                  disabled={loading || registrationSuccess}
                   className="w-full bg-orange-500 text-white py-3 px-4 rounded-lg hover:bg-orange-600 transition-colors disabled:opacity-50"
                 >
-                  {loading ? 'Procesando...' : authMode === 'login' ? 'Iniciar Sesión' : 'Crear Cuenta'}
+                  {loading ? 'Procesando...' : 
+                   registrationSuccess ? '✅ Registro Exitoso' :
+                   authMode === 'login' ? 'Iniciar Sesión' : 'Crear Cuenta'}
                 </button>
+
               </form>
 
               <div className="mt-4 text-center">
-                <button
-                  onClick={switchAuthMode}
-                  className="text-sm text-orange-500 hover:text-orange-600"
-                >
-                  {authMode === 'login' 
-                    ? '¿No tienes cuenta? Crear una' 
-                    : '¿Ya tienes cuenta? Iniciar sesión'
-                  }
-                </button>
+                {authMode === 'login' && !registrationSuccess && (
+                  <button
+                    onClick={handleForgotPassword}
+                    className="text-sm text-orange-500 hover:text-orange-600 mb-2 block"
+                  >
+                    ¿Olvidaste tu contraseña?
+                  </button>
+                )}
+                {!registrationSuccess && (
+                  <button
+                    onClick={switchAuthMode}
+                    className="text-sm text-orange-500 hover:text-orange-600"
+                  >
+                    {authMode === 'login' 
+                      ? '¿No tienes cuenta? Crear una' 
+                      : '¿Ya tienes cuenta? Iniciar sesión'
+                    }
+                  </button>
+                )}
+                {registrationSuccess && (
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Esta ventana se cerrará automáticamente en unos segundos...
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -547,6 +664,90 @@ const UserMenu = () => {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Forgot Password Modal */}
+      {showForgotPassword && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+                  Recuperar Contraseña
+                </h3>
+                <button
+                  onClick={resetForgotPassword}
+                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full"
+                >
+                  <span className="sr-only">Cerrar</span>
+                  <svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <p className="text-gray-600 dark:text-gray-300 mb-4 text-sm">
+                Ingresa tu email y te enviaremos las instrucciones para restablecer tu contraseña.
+              </p>
+
+              {forgotMessage && (
+                <div className={`mb-4 p-3 rounded-lg text-sm ${
+                  forgotMessage.startsWith('✅') 
+                    ? 'bg-green-100 dark:bg-green-900/20 border border-green-300 dark:border-green-700 text-green-700 dark:text-green-400'
+                    : 'bg-red-100 dark:bg-red-900/20 border border-red-300 dark:border-red-700 text-red-700 dark:text-red-400'
+                }`}>
+                  {forgotMessage}
+                </div>
+              )}
+
+              <form onSubmit={handleSendResetEmail} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={forgotEmail}
+                    onChange={(e) => setForgotEmail(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    placeholder="tu@email.com"
+                  />
+                </div>
+
+                <div className="flex space-x-3">
+                  <button
+                    type="submit"
+                    disabled={forgotLoading}
+                    className="flex-1 bg-orange-500 text-white py-3 px-4 rounded-lg hover:bg-orange-600 transition-colors disabled:opacity-50"
+                  >
+                    {forgotLoading ? 'Enviando...' : 'Enviar Email'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={resetForgotPassword}
+                    className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </form>
+
+              <div className="mt-4 text-center">
+                <button
+                  onClick={() => {
+                    resetForgotPassword();
+                    setShowAuthModal(true);
+                    setAuthMode('login');
+                  }}
+                  className="text-sm text-orange-500 hover:text-orange-600"
+                >
+                  Volver al inicio de sesión
+                </button>
+              </div>
             </div>
           </div>
         </div>

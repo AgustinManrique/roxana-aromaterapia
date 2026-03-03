@@ -36,7 +36,7 @@ const Footer = () => {
               </div>
               <div className="flex items-center space-x-3">
                 <Mail className="w-5 h-5 text-orange-500" />
-                <span className="text-gray-600 dark:text-gray-300">info@roxanaaromaterapia.com (pedir real)</span>
+                <span className="text-gray-600 dark:text-gray-300">roxanaaromaterapia@gmail.com</span>
               </div>
               <div className="flex items-start space-x-3">
                 <MapPin className="w-5 h-5 text-orange-500 mt-0.5" />

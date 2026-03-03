@@ -1,15 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { MapPin, Truck, Store, CreditCard, DollarSign, ArrowLeft } from 'lucide-react';
+import { MapPin, Truck, Store, ArrowLeft } from 'lucide-react';
 import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-
-// Declare MercadoPago global
-declare global {
-  interface Window {
-    MercadoPago: any;
-  }
-}
 
 interface CheckoutFormProps {
   onBack: () => void;
@@ -21,10 +14,8 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({ onBack, onSuccess }) => {
   const { user } = useAuth();
   
   const [deliveryType, setDeliveryType] = useState<'pickup' | 'delivery'>('pickup');
-  const [paymentMethod, setPaymentMethod] = useState<'mercadopago' | 'transfer' | 'cash'>('mercadopago');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [processingPayment, setProcessingPayment] = useState(false);
 
   // Shipping form data
   const [shippingData, setShippingData] = useState({
@@ -61,7 +52,6 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({ onBack, onSuccess }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
 
     setLoading(true);
     setError('');
@@ -71,110 +61,64 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({ onBack, onSuccess }) => {
       if (deliveryType === 'delivery') {
         if (!shippingData.street || !shippingData.phone || !shippingData.postal_code) {
           setError('Por favor completa todos los campos de envío');
+          setLoading(false);
           return;
         }
       }
 
-      // Crear el pedido
-      const { data: order, error: orderError } = await supabase
-        .from('orders')
-        .insert([{
-          user_id: user.id,
-          total: totalWithShipping,
-          delivery_type: deliveryType,
-          shipping_address: deliveryType === 'delivery' ? shippingData : null,
-          shipping_cost: shippingCost,
-          payment_method: paymentMethod,
-          notes: orderNotes
-        }])
-        .select()
-        .single();
+      // Construir mensaje de WhatsApp
+      let message = '¡Hola! Me gustaría hacer el siguiente pedido:\n\n';
+      // Emojis como secuencias Unicode para evitar problemas de codificación
+      message += '\uD83D\uDCE6 *PRODUCTOS:*\n'; // 📦
 
-      if (orderError) throw orderError;
+      items.forEach((item, index) => {
+        message += `${index + 1}. ${item.name}\n`;
+        message += `   Cantidad: ${item.quantity}\n`;
+        message += `   Precio unitario: $${item.price.toLocaleString()}\n`;
+        message += `   Subtotal: $${(item.price * item.quantity).toLocaleString()}\n\n`;
+      });
 
-      // Crear los items del pedido
-      const orderItems = items.map(item => ({
-        order_id: order.id,
-        product_id: item.id,
-        product_name: item.name,
-        product_price: item.price,
-        quantity: item.quantity,
-        subtotal: item.price * item.quantity
-      }));
+      message += `\uD83D\uDCB0 *Subtotal:* $${getTotalPrice().toLocaleString()}\n`; // 💰
 
-      const { error: itemsError } = await supabase
-        .from('order_items')
-        .insert(orderItems);
-
-      if (itemsError) throw itemsError;
-
-      // Si es MercadoPago, procesar pago
-      if (paymentMethod === 'mercadopago') {
-        await handleMercadoPagoPayment(order);
-        return; // Don't clear cart yet, wait for payment confirmation
+      // Información de entrega
+      if (deliveryType === 'delivery') {
+        message += `\n\uD83D\uDE9A *ENTREGA:* Envío a domicilio ($${shippingCost.toLocaleString()})\n`; // 🚚
+        message += `📍 *Dirección:*\n`;
+        message += `${shippingData.street}\n`;
+        message += `${shippingData.city}, CP: ${shippingData.postal_code}\n`;
+        message += `📞 Teléfono: ${shippingData.phone}\n`;
+        if (shippingData.notes) {
+          message += `\uD83D\uDCDD Notas de envío: ${shippingData.notes}\n`; // 📝
+        }
+      } else {
+        message += `\n\uD83C\uDFEA *ENTREGA:* Retiro en local (Gratis)\n`; // 🏪
+        message += `📍 Calle 136, entre 530 y 531. Número 124, La Plata\n`;
       }
 
-      // Para otros métodos de pago, enviar email de confirmación
-      await sendOrderConfirmation(order.id);
+      // Notas adicionales
+      if (orderNotes) {
+        message += `\n\uD83D\uDCDD *NOTAS ADICIONALES:*\n${orderNotes}\n`; // 📝
+      }
 
-      // Limpiar carrito y mostrar éxito (solo para métodos que no sean MercadoPago)
+      message += `\n\uD83D\uDCB5 *TOTAL A PAGAR:* $${totalWithShipping.toLocaleString()}\n`; // 💵
+
+      // Abrir WhatsApp
+      const phoneNumber = "5492214363284";
+      const url = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
+      window.open(url, '_blank');
+
+      // Limpiar carrito y mostrar éxito
       clearCart();
-      onSuccess(order.id);
+      onSuccess('whatsapp');
 
     } catch (error) {
-      console.error('Error creating order:', error);
-      setError('Error al crear el pedido. Intenta nuevamente.');
+      console.error('Error generating WhatsApp message:', error);
+      setError('Error al generar el mensaje. Intenta nuevamente.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleMercadoPagoPayment = async (order: any) => {
-    try {
-      setProcessingPayment(true);
-      
-      // Create payment preference
-      const { data } = await supabase.functions.invoke('create-payment', {
-        body: {
-          orderId: order.id,
-          amount: totalWithShipping,
-          description: `Pedido #${order.order_number} - Roxana Aromaterapia`
-        }
-      });
-
-      if (data.error) {
-        throw new Error(data.error);
-      }
-
-      // Redirect to MercadoPago
-      window.open(data.initPoint, '_blank');
-      
-      // Show success message but don't clear cart yet
-      setError('');
-      alert('Te hemos redirigido a MercadoPago para completar el pago. Una vez confirmado el pago, recibirás un email de confirmación.');
-      
-      // Clear cart and show success (user will get email confirmation when payment is processed)
-      clearCart();
-      onSuccess(order.id);
-      
-    } catch (error) {
-      console.error('Error processing MercadoPago payment:', error);
-      setError('Error al procesar el pago con MercadoPago. Intenta nuevamente.');
-    } finally {
-      setProcessingPayment(false);
-    }
-  };
-
-  const sendOrderConfirmation = async (orderId: string) => {
-    try {
-      await supabase.functions.invoke('send-order-confirmation', {
-        body: { orderId }
-      });
-    } catch (error) {
-      console.error('Error sending confirmation email:', error);
-      // Don't throw error, just log it - order was created successfully
-    }
-  };
 
   return (
     <div className="flex flex-col h-full">
@@ -339,64 +283,6 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({ onBack, onSuccess }) => {
             </div>
           )}
 
-          {/* Método de Pago */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-              Método de Pago
-            </h3>
-            <div className="space-y-3">
-              <label className={`flex items-center p-4 border-2 rounded-lg cursor-pointer transition-colors ${
-                paymentMethod === 'mercadopago' 
-                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' 
-                  : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
-              }`}>
-                <input
-                  type="radio"
-                  name="paymentMethod"
-                  value="mercadopago"
-                  checked={paymentMethod === 'mercadopago'}
-                  onChange={(e) => setPaymentMethod(e.target.value as 'mercadopago')}
-                  className="sr-only"
-                />
-                <CreditCard className="w-6 h-6 text-blue-500 mr-3" />
-                <div>
-                  <div className="font-medium text-gray-900 dark:text-white">
-                    MercadoPago
-                  </div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400">
-                    Tarjeta de crédito, débito o efectivo
-                  </div>
-                </div>
-              </label>
-
-              {deliveryType === 'pickup' && (
-                <label className={`flex items-center p-4 border-2 rounded-lg cursor-pointer transition-colors ${
-                  paymentMethod === 'cash' 
-                    ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20' 
-                    : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
-                }`}>
-                  <input
-                    type="radio"
-                    name="paymentMethod"
-                    value="cash"
-                    checked={paymentMethod === 'cash'}
-                    onChange={(e) => setPaymentMethod(e.target.value as 'cash')}
-                    className="sr-only"
-                  />
-                  <DollarSign className="w-6 h-6 text-orange-500 mr-3" />
-                  <div>
-                    <div className="font-medium text-gray-900 dark:text-white">
-                      Efectivo
-                    </div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">
-                      Pago al retirar en el local
-                    </div>
-                  </div>
-                </label>
-              )}
-            </div>
-          </div>
-
           {/* Notas del Pedido */}
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
@@ -447,10 +333,19 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({ onBack, onSuccess }) => {
               form.dispatchEvent(event);
             }
           }}
-          disabled={loading || processingPayment}
-          className="w-full bg-orange-500 text-white py-4 px-6 rounded-lg hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium text-lg"
+          disabled={loading}
+          className="w-full bg-green-500 text-white py-4 px-6 rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium text-lg flex items-center justify-center space-x-2"
         >
-          {loading || processingPayment ? 'Procesando...' : `Confirmar Pedido - $${totalWithShipping.toLocaleString()}`}
+          {loading ? (
+            <span>Preparando mensaje...</span>
+          ) : (
+            <>
+              <svg className="w-6 h-6 fill-white" viewBox="0 0 24 24">
+                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.885 3.488"/>
+              </svg>
+              <span>Enviar Pedido por WhatsApp - ${totalWithShipping.toLocaleString()}</span>
+            </>
+          )}
         </button>
       </div>
     </div>

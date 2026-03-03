@@ -24,8 +24,7 @@ const OrderManager = () => {
           order_items (*),
           profiles (
             full_name,
-            email,
-            phone
+            email
           )
         `)
         .order('created_at', { ascending: false });
@@ -548,12 +547,12 @@ const OrderManager = () => {
                 {(contactOrder.shipping_address?.phone || contactOrder.profiles?.phone) && (
                   <button
                     onClick={() => handleWhatsAppContact(contactOrder)}
-                    className="w-full flex items-center space-x-3 p-4 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+                    className="w-full flex items-center justify-center space-x-3 p-4 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
                   >
-                    <MessageCircle className="w-5 h-5 flex-shrink-0 ml-2" />
-                    <div className="flex-1 text-left mr-2">
+                    <MessageCircle className="w-5 h-5" />
+                    <div className="text-left">
                       <div className="font-medium">WhatsApp</div>
-                      <div className="text-sm opacity-90 truncate">
+                      <div className="text-sm opacity-90">
                         {contactOrder.shipping_address?.phone || contactOrder.profiles?.phone}
                       </div>
                     </div>
@@ -564,12 +563,12 @@ const OrderManager = () => {
                 {contactOrder.profiles?.email && (
                   <button
                     onClick={() => handleEmailContact(contactOrder)}
-                    className="w-full flex items-center space-x-3 p-4 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                    className="w-full flex items-center justify-center space-x-3 p-4 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
                   >
-                    <Mail className="w-5 h-5 flex-shrink-0 ml-2" />
-                    <div className="flex-1 text-left mr-2">
+                    <Mail className="w-5 h-5" />
+                    <div className="text-left">
                       <div className="font-medium">Email</div>
-                      <div className="text-sm opacity-90 truncate">
+                      <div className="text-sm opacity-90">
                         {contactOrder.profiles?.email}
                       </div>
                     </div>

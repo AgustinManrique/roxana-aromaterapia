@@ -11,6 +11,9 @@ import CartSidebar from './components/CartSidebar';
 import AdminPanel from './components/AdminPanel';
 import OrderHistory from './components/OrderHistory';
 import OrderManager from './components/admin/OrderManager';
+import AuthCallback from './components/AuthCallback';
+import ResetPassword from './components/ResetPassword';
+import SetupNotice from './components/SetupNotice';
 
 function App() {
   const { loading } = useAuth();
@@ -18,6 +21,24 @@ function App() {
   const [categoryId, setCategoryId] = useState('all');
   const [showOrderHistory, setShowOrderHistory] = useState(false);
   const [showAdminOrders, setShowAdminOrders] = useState(false);
+  const [currentPath, setCurrentPath] = useState(window.location.pathname);
+
+  useEffect(() => {
+    // Listen for URL changes
+    const handlePopState = () => {
+      setCurrentPath(window.location.pathname);
+    };
+    
+    window.addEventListener('popstate', handlePopState);
+    
+    // Also update on initial load and hash changes
+    setCurrentPath(window.location.pathname);
+    window.addEventListener('hashchange', () => {
+      setCurrentPath(window.location.pathname);
+    });
+    
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   useEffect(() => {
     const handleShowOrderHistory = () => {
@@ -48,6 +69,15 @@ function App() {
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
       </div>
     );
+  }
+
+  // Handle auth callback routes
+  if (currentPath === '/auth/callback') {
+    return <AuthCallback />;
+  }
+
+  if (currentPath === '/auth/reset-password') {
+    return <ResetPassword />;
   }
 
   // Show Order History
@@ -108,6 +138,9 @@ function App() {
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900 transition-colors">
       <Header />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
+        <SetupNotice />
+      </div>
       <Hero />
       <SearchBar onSearch={handleSearch} />
       <ProductGrid searchTerm={searchTerm} categoryId={categoryId} />

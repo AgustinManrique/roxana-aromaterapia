@@ -4,10 +4,15 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables');
+  console.warn('Supabase environment variables not configured. Using demo mode.');
+  // Don't throw error to allow development without Supabase
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Create Supabase client with fallback values for development
+export const supabase = createClient(
+  supabaseUrl || 'https://demo.supabase.co', 
+  supabaseAnonKey || 'demo-key'
+);
 
 // Types
 export interface User {
@@ -71,7 +76,6 @@ export interface Order {
   profiles?: {
     full_name: string;
     email: string;
-    phone?: string;
   };
 }
 
