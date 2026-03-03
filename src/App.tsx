@@ -5,6 +5,7 @@ import Header from './components/Header';
 import Hero from './components/Hero';
 import SearchBar from './components/SearchBar';
 import ProductGrid from './components/ProductGrid';
+import InfoSection from './components/InfoSection';
 import Footer from './components/Footer';
 import WhatsAppButton from './components/WhatsAppButton';
 import CartSidebar from './components/CartSidebar';
@@ -144,6 +145,7 @@ function App() {
       <Hero />
       <SearchBar onSearch={handleSearch} />
       <ProductGrid searchTerm={searchTerm} categoryId={categoryId} />
+      <InfoSection />
       <Footer />
       <WhatsAppButton />
       <CartSidebar />

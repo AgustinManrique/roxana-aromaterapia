@@ -53,19 +53,28 @@ const Footer = () => {
           <div>
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Información</h3>
             <div className="space-y-2">
-              <a href="#" className="block text-gray-600 dark:text-gray-300 hover:text-orange-500 transition-colors">
+              <a
+                href="#sobre-nosotros"
+                className="block text-gray-600 dark:text-gray-300 hover:text-orange-500 transition-colors"
+              >
                 Sobre Nosotros
               </a>
-              <a href="#" className="block text-gray-600 dark:text-gray-300 hover:text-orange-500 transition-colors">
+              <a
+                href="#envios-devoluciones"
+                className="block text-gray-600 dark:text-gray-300 hover:text-orange-500 transition-colors"
+              >
                 Envíos y Devoluciones
               </a>
-              <a href="#" className="block text-gray-600 dark:text-gray-300 hover:text-orange-500 transition-colors">
-                Términos y Condiciones
+              <a
+                href="#metodos-pago"
+                className="block text-gray-600 dark:text-gray-300 hover:text-orange-500 transition-colors"
+              >
+                Medios de Pago
               </a>
-              <a href="#" className="block text-gray-600 dark:text-gray-300 hover:text-orange-500 transition-colors">
-                Política de Privacidad
-              </a>
-              <a href="#" className="block text-gray-600 dark:text-gray-300 hover:text-orange-500 transition-colors">
+              <a
+                href="#preguntas-frecuentes"
+                className="block text-gray-600 dark:text-gray-300 hover:text-orange-500 transition-colors"
+              >
                 Preguntas Frecuentes
               </a>
             </div>
@@ -74,8 +83,8 @@ const Footer = () => {
 
         {/* Copyright */}
         <div className="border-t border-orange-200 mt-8 pt-8 text-center">
-          <p className="text-gray-600 dark:text-gray-300">
-            © 2025 Roxana Aromaterapia. Todos los derechos reservados.
+          <p className="text-gray-600 dark:text-gray-300 text-sm">
+            © {new Date().getFullYear()} Roxana Aromaterapia. Todos los derechos reservados.
           </p>
         </div>
       </div>

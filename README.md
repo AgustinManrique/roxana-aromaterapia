@@ -34,36 +34,18 @@ Una moderna tienda online de productos de aromaterapia construida con React, Typ
 - **Iconos:** Lucide React
 - **Deploy:** Netlify
 
-## 🚀 Instalación y Desarrollo
+## 🔒 Uso del repositorio
 
-### **Prerrequisitos:**
-- Node.js 18+
-- npm o yarn
-- Cuenta de Supabase
-- Cuenta de MercadoPago (para pagos)
+Este proyecto está pensado **exclusivamente para el e‑commerce en producción de Roxana Aromaterapia**.
 
-### **1. Clonar el repositorio:**
-```bash
-git clone https://github.com/tu-usuario/roxana-aromaterapia.git
-cd roxana-aromaterapia
-```
+- No es una plantilla genérica ni un starter kit.
+- No incluye credenciales reales ni configuración completa de Supabase, MercadoPago o Resend.
+- Sin acceso a esos servicios y a la configuración privada, **no se puede reproducir el entorno de producción**.
 
-### **2. Instalar dependencias:**
-```bash
-npm install
-```
+Si otro desarrollador autorizado necesita trabajar en el proyecto:
 
-### **3. Configurar variables de entorno:**
-Crear archivo `.env` en la raíz:
-```bash
-VITE_SUPABASE_URL=tu_supabase_url
-VITE_SUPABASE_ANON_KEY=tu_supabase_anon_key
-```
-
-### **4. Ejecutar en desarrollo:**
-```bash
-npm run dev
-```
+- Debe usar sus propias credenciales y proyectos de terceros (Supabase, MercadoPago, Resend, etc.).
+- Debe configurar las variables de entorno (`.env`) manualmente. Las secciones de **Base de Datos**, **Pagos** y **Emails** sirven como referencia conceptual, no como guía para levantar un entorno idéntico al de producción.
 
 ## 📊 Base de Datos
 
@@ -102,18 +84,15 @@ RESEND_API_KEY=tu_api_key
 SITE_URL=https://tu-dominio.com
 ```
 
-## 🚀 Deploy
+## 🚀 Deploy (referencia interna)
 
-### **Netlify:**
-1. Conectar repositorio de GitHub
-2. Configurar variables de entorno
-3. Deploy automático en cada push
+El proyecto está desplegado en un entorno privado (actualmente `roxanaaromaterapia.com`) con:
 
-### **Variables de entorno para producción:**
-```bash
-VITE_SUPABASE_URL=tu_supabase_url
-VITE_SUPABASE_ANON_KEY=tu_supabase_anon_key
-```
+- Frontend estático generado con Vite.
+- Backend de datos y autenticación en Supabase.
+- Integraciones externas (MercadoPago, Resend) configuradas con claves privadas **no incluidas en este repositorio**.
+
+Esta sección es solo descriptiva para entender la arquitectura; **no es una guía para que terceros repliquen el entorno de producción.**
 
 ## 📱 Funcionalidades Destacadas
 
