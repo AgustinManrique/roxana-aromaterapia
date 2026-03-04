@@ -13,10 +13,6 @@ const CartSidebar = () => {
   const [successOrderId, setSuccessOrderId] = useState<string>('');
 
   const handleCheckout = () => {
-    if (!user) {
-      alert('Debes iniciar sesión para realizar una compra');
-      return;
-    }
     setCurrentView('checkout');
   };
 
@@ -149,11 +145,11 @@ const CartSidebar = () => {
 
                 {/* Action Buttons */}
                 <div className="space-y-2">
-                  <button 
+                  <button
                     onClick={handleCheckout}
                     className="w-full bg-orange-500 text-white py-3 rounded-lg hover:bg-orange-600 transition-colors font-medium"
                   >
-                    {user ? 'Finalizar Compra' : 'Iniciar Sesión para Comprar'}
+                    Finalizar Compra
                   </button>
                   <button
                     onClick={clearCart}

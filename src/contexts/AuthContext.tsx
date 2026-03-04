@@ -92,20 +92,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signUp = async (email: string, password: string) => {
-    try {
-      // First check if user already exists by trying to sign in
-      const { data: existingUser } = await supabase.auth.signInWithPassword({
-        email,
-        password: 'dummy-password' // This will fail but tell us if user exists
-      });
-    } catch (checkError) {
-      // If error is NOT "Invalid login credentials", user might already exist
-      if (checkError.message && !checkError.message.includes('Invalid login credentials')) {
-        console.log('User existence check:', checkError.message);
-      }
-    }
-
-    // Proceed with signup
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -113,10 +99,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         emailRedirectTo: `${window.location.origin}/auth/callback`
       }
     });
-    
-    // Log for debugging
-    console.log('SignUp result:', { user: data?.user?.id, session: !!data?.session, error });
-    
+
     return { error, data };
   };
 
