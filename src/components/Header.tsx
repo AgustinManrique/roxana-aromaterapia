@@ -28,24 +28,23 @@ const Header = () => {
           </div>
 
           {/* Right side icons */}
-          <div className="flex items-center space-x-4">
-            {/* Admin Panel Button - Only visible for admins */}
+          <div className="flex items-center space-x-1 sm:space-x-3">
             {isAdmin && (
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-1">
                 <button 
                   onClick={() => window.dispatchEvent(new Event('showAdminOrders'))}
-                  className="flex items-center space-x-2 px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium"
+                  className="p-2 sm:px-3 sm:py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium"
                   title="Gestión de Pedidos"
                 >
-                  <ShoppingCart className="w-4 h-4" />
+                  <ShoppingCart className="w-4 h-4 sm:hidden" />
                   <span className="hidden sm:inline">Pedidos</span>
                 </button>
                 <button 
                   onClick={() => window.dispatchEvent(new Event('toggleAdminPanel'))}
-                  className="flex items-center space-x-2 px-3 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm font-medium"
+                  className="p-2 sm:px-3 sm:py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm font-medium"
                   title="Panel de Administración"
                 >
-                  <Settings className="w-4 h-4" />
+                  <Settings className="w-4 h-4 sm:hidden" />
                   <span className="hidden sm:inline">Admin</span>
                 </button>
               </div>

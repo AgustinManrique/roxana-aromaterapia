@@ -130,6 +130,7 @@ function App() {
         </div>
         <WhatsAppButton />
         <CartSidebar />
+        <AdminPanel />
       </div>
     );
   }

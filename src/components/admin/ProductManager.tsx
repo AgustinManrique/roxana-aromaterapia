@@ -91,15 +91,27 @@ const ProductManager = () => {
   };
 
   const uploadImage = async (file: File): Promise<string> => {
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${Date.now()}.${fileExt}`;
+    const maxSize = 5 * 1024 * 1024; // 5 MB
+    if (file.size > maxSize) {
+      throw new Error('La imagen es demasiado grande (máximo 5 MB)');
+    }
+
+    const fileExt = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+    const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
     const filePath = `products/${fileName}`;
 
     const { error: uploadError } = await supabase.storage
       .from('product-images')
-      .upload(filePath, file);
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: false,
+        contentType: file.type,
+      });
 
-    if (uploadError) throw uploadError;
+    if (uploadError) {
+      console.error('Storage upload error:', uploadError);
+      throw new Error(`Error al subir imagen: ${uploadError.message}`);
+    }
 
     const { data } = supabase.storage
       .from('product-images')
@@ -149,9 +161,10 @@ const ProductManager = () => {
       // Reset form and refresh products
       resetForm();
       fetchProducts();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving product:', error);
-      alert('Error al guardar el producto');
+      const msg = error?.message || 'Error desconocido';
+      alert(`Error al guardar el producto: ${msg}`);
     } finally {
       setUploading(false);
     }
@@ -363,8 +376,9 @@ const ProductManager = () => {
                     <input
                       type="file"
                       accept="image/*"
+                      capture="environment"
                       onChange={(e) => setImageFile(e.target.files?.[0] || null)}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
                     />
                     {(formData.image_url || imageFile) && (
                       <div className="mt-2">
