@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User, LogIn, UserPlus, LogOut, Settings, ShoppingBag } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -30,6 +30,20 @@ const UserMenu = () => {
   const [registrationSuccess, setRegistrationSuccess] = useState(false);
 
   const { user, userProfile, isAdmin, signIn, signUp, signOut } = useAuth();
+
+  // Listen for openAuthModal events from other components (e.g., CheckoutForm)
+  useEffect(() => {
+    const handleOpenAuthModal = (e: CustomEvent) => {
+      const mode = e.detail?.mode || 'login';
+      setAuthMode(mode);
+      setShowAuthModal(true);
+    };
+
+    window.addEventListener('openAuthModal', handleOpenAuthModal as EventListener);
+    return () => {
+      window.removeEventListener('openAuthModal', handleOpenAuthModal as EventListener);
+    };
+  }, []);
 
   // Validation functions
   const validateEmail = (email: string): boolean => {
@@ -106,14 +120,19 @@ const UserMenu = () => {
             }
           }
         });
-        
+
         if (error) {
           console.error('Registration error:', error);
           throw error;
         }
-        
-        // Always show confirmation message regardless of session
-        // User should NEVER be logged in immediately after signup
+
+        // Supabase returns a user with empty identities when email already exists
+        if (data.user && data.user.identities && data.user.identities.length === 0) {
+          setError('Ya existe una cuenta con este email. Intenta iniciar sesión o recuperar tu contraseña.');
+          return;
+        }
+
+        // Show confirmation message for successful registration
         if (data.user) {
           setError('');
           setRegistrationSuccess(true);

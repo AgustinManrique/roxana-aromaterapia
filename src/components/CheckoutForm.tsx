@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MapPin, Truck, Store, ArrowLeft } from 'lucide-react';
+import { MapPin, Truck, Store, ArrowLeft, LogIn } from 'lucide-react';
 import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -140,6 +140,30 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({ onBack, onSuccess }) => {
         {error && (
           <div className="mb-6 p-4 bg-red-100 dark:bg-red-900/20 border border-red-300 dark:border-red-700 text-red-700 dark:text-red-400 rounded-lg">
             {error}
+          </div>
+        )}
+
+        {/* Login suggestion for non-logged-in users */}
+        {!user && (
+          <div className="mb-6 p-4 bg-orange-50 dark:bg-orange-900/10 border border-orange-200 dark:border-orange-800 rounded-lg">
+            <div className="flex items-start space-x-3">
+              <LogIn className="w-5 h-5 text-orange-500 mt-0.5 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm text-gray-700 dark:text-gray-300 mb-2">
+                  Podes enviar tu pedido sin cuenta, pero si inicias sesion vas a poder hacer un mejor seguimiento.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    window.dispatchEvent(new CustomEvent('openAuthModal', { detail: { mode: 'login' } }));
+                  }}
+                  className="inline-flex items-center space-x-2 px-4 py-2 bg-orange-500 text-white text-sm font-medium rounded-lg hover:bg-orange-600 transition-colors"
+                >
+                  <LogIn className="w-4 h-4" />
+                  <span>Iniciar sesion para mejor seguimiento del pedido</span>
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
