@@ -29,7 +29,7 @@ const UserMenu = () => {
   const [forgotMessage, setForgotMessage] = useState('');
   const [registrationSuccess, setRegistrationSuccess] = useState(false);
 
-  const { user, userProfile, isAdmin, signIn, signUp, signOut } = useAuth();
+  const { user, userProfile, isAdmin, signIn, signUp, signOut, refreshProfile } = useAuth();
 
   // Listen for openAuthModal events from other components (e.g., CheckoutForm)
   useEffect(() => {
@@ -260,7 +260,7 @@ const UserMenu = () => {
       setSettingsPhone('');
       
       // Refresh the auth context to get updated profile
-      window.location.reload();
+      await refreshProfile();
     } catch (error) {
       console.error('Error updating profile:', error);
       setSettingsError('Error al actualizar el perfil');
