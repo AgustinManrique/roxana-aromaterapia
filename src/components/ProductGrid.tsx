@@ -55,14 +55,23 @@ const ProductGrid: React.FC<ProductGridProps> = ({ searchTerm = '', categoryId =
     }
   };
 
-  const getCategoryColor = (category: string) => {
-    const colors = {
-      "Aceites Esenciales": "bg-blue-100 text-blue-800",
-      "Difusores": "bg-green-100 text-green-800",
-      "Velas Aromáticas": "bg-purple-100 text-purple-800",
-      "Cosméticos Naturales": "bg-pink-100 text-pink-800"
-    };
-    return colors[category as keyof typeof colors] || "bg-gray-100 text-gray-800";
+  const getCategoryColor = (categoryName: string) => {
+    const palette = [
+      "bg-blue-100 text-blue-800",
+      "bg-green-100 text-green-800",
+      "bg-purple-100 text-purple-800",
+      "bg-pink-100 text-pink-800",
+      "bg-yellow-100 text-yellow-800",
+      "bg-indigo-100 text-indigo-800",
+      "bg-red-100 text-red-800",
+      "bg-teal-100 text-teal-800",
+    ];
+    // Generate a consistent index from the category name
+    let hash = 0;
+    for (let i = 0; i < categoryName.length; i++) {
+      hash = categoryName.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return palette[Math.abs(hash) % palette.length];
   };
 
   if (loading) {
@@ -125,7 +134,7 @@ const ProductGrid: React.FC<ProductGridProps> = ({ searchTerm = '', categoryId =
                 
                 {/* Category badge */}
                 <div className="absolute top-3 left-3">
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getCategoryColor(product.category)}`}>
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getCategoryColor(product.category?.name || '')}`}>
                     {product.category?.name || 'Sin categoría'}
                   </span>
                 </div>

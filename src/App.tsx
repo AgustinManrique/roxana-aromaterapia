@@ -52,7 +52,6 @@ function App() {
 
     window.addEventListener('showOrderHistory', handleShowOrderHistory);
     window.addEventListener('showAdminOrders', handleShowAdminOrders);
-    return () => window.removeEventListener('showOrderHistory', handleShowOrderHistory);
     return () => {
       window.removeEventListener('showOrderHistory', handleShowOrderHistory);
       window.removeEventListener('showAdminOrders', handleShowAdminOrders);

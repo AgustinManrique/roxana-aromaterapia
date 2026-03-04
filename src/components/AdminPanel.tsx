@@ -3,6 +3,7 @@ import { Package, Tag, Users, BarChart3 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import ProductManager from './admin/ProductManager';
 import CategoryManager from './admin/CategoryManager';
+import StatsPanel from './admin/StatsPanel';
 
 const AdminPanel = () => {
   const { isAdmin } = useAuth();
@@ -93,16 +94,7 @@ const AdminPanel = () => {
           <div className="flex-1 p-6 bg-gray-50 dark:bg-gray-800">
             {activeTab === 'products' && <ProductManager />}
             {activeTab === 'categories' && <CategoryManager />}
-            {activeTab === 'stats' && (
-              <div className="bg-white dark:bg-gray-900 rounded-lg shadow p-6">
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-                  Estadísticas
-                </h2>
-                <p className="text-gray-600 dark:text-gray-300">
-                  Próximamente: estadísticas de ventas y productos más populares
-                </p>
-              </div>
-            )}
+            {activeTab === 'stats' && <StatsPanel />}
           </div>
         </div>
       </div>

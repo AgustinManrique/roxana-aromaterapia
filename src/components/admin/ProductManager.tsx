@@ -11,6 +11,11 @@ const ProductManager = () => {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
 
+  // Inline category creation
+  const [showNewCategory, setShowNewCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [creatingCategory, setCreatingCategory] = useState(false);
+
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -55,6 +60,33 @@ const ProductManager = () => {
       setCategories(data || []);
     } catch (error) {
       console.error('Error fetching categories:', error);
+    }
+  };
+
+  const handleCreateCategory = async () => {
+    if (!newCategoryName.trim()) return;
+    setCreatingCategory(true);
+    try {
+      const { data, error } = await supabase
+        .from('categories')
+        .insert([{ name: newCategoryName.trim() }])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Refresh categories and auto-select the new one
+      await fetchCategories();
+      if (data) {
+        setFormData(prev => ({ ...prev, category_id: data.id }));
+      }
+      setNewCategoryName('');
+      setShowNewCategory(false);
+    } catch (error) {
+      console.error('Error creating category:', error);
+      alert('Error al crear la categoría');
+    } finally {
+      setCreatingCategory(false);
     }
   };
 
@@ -271,18 +303,56 @@ const ProductManager = () => {
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Categoría
                   </label>
-                  <select
-                    value={formData.category_id}
-                    onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  >
-                    <option value="">Sin categoría</option>
-                    {categories.map((category) => (
-                      <option key={category.id} value={category.id}>
-                        {category.name}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="flex items-center space-x-2">
+                    <select
+                      value={formData.category_id}
+                      onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
+                      className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    >
+                      <option value="">Sin categoría</option>
+                      {categories.map((category) => (
+                        <option key={category.id} value={category.id}>
+                          {category.name}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => setShowNewCategory(!showNewCategory)}
+                      className="flex-shrink-0 p-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
+                      title="Crear nueva categoría"
+                    >
+                      <Plus className="w-5 h-5" />
+                    </button>
+                  </div>
+                  {showNewCategory && (
+                    <div className="mt-2 flex items-center space-x-2">
+                      <input
+                        type="text"
+                        value={newCategoryName}
+                        onChange={(e) => setNewCategoryName(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleCreateCategory(); } }}
+                        placeholder="Nombre de la categoría"
+                        className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                        autoFocus
+                      />
+                      <button
+                        type="button"
+                        onClick={handleCreateCategory}
+                        disabled={creatingCategory || !newCategoryName.trim()}
+                        className="px-3 py-2 bg-green-500 text-white text-sm rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50"
+                      >
+                        {creatingCategory ? '...' : 'Crear'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setShowNewCategory(false); setNewCategoryName(''); }}
+                        className="p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <div>
