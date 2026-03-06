@@ -9,6 +9,8 @@ interface ProductGridProps {
   categoryId?: string;
 }
 
+const FALLBACK_IMAGE = 'https://images.pexels.com/photos/4041392/pexels-photo-4041392.jpeg?auto=compress&cs=tinysrgb&w=400';
+
 const ProductGrid: React.FC<ProductGridProps> = ({ searchTerm = '', categoryId = 'all' }) => {
   const { addItem } = useCart();
   const [products, setProducts] = useState<Product[]>([]);
@@ -124,9 +126,10 @@ const ProductGrid: React.FC<ProductGridProps> = ({ searchTerm = '', categoryId =
               {/* Product image */}
               <div className="relative aspect-square overflow-hidden">
                 <img
-                  src={product.image_url || 'https://images.pexels.com/photos/4041392/pexels-photo-4041392.jpeg?auto=compress&cs=tinysrgb&w=400'}
+                  src={product.image_url || FALLBACK_IMAGE}
                   alt={product.name}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  onError={(e) => { (e.target as HTMLImageElement).src = FALLBACK_IMAGE; }}
                 />
                 <button className="absolute top-3 right-3 p-2 bg-white dark:bg-gray-600 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-300 hover:bg-gray-50 dark:hover:bg-gray-500">
                   <Heart className="w-4 h-4 text-gray-600" />
@@ -158,7 +161,7 @@ const ProductGrid: React.FC<ProductGridProps> = ({ searchTerm = '', categoryId =
                       id: product.id,
                       name: product.name,
                       price: product.price,
-                      image: product.image_url || 'https://images.pexels.com/photos/4041392/pexels-photo-4041392.jpeg?auto=compress&cs=tinysrgb&w=400'
+                      image: product.image_url || FALLBACK_IMAGE
                     })}
                     className="flex items-center space-x-1 bg-orange-500 text-white px-3 py-2 rounded-lg hover:bg-orange-600 transition-colors text-sm"
                   >

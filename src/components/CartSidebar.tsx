@@ -86,6 +86,7 @@ const CartSidebar = () => {
                         src={item.image}
                         alt={item.name}
                         className="w-16 h-16 object-cover rounded-lg"
+                        onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.pexels.com/photos/4041392/pexels-photo-4041392.jpeg?auto=compress&cs=tinysrgb&w=400'; }}
                       />
                       
                       {/* Product Info */}

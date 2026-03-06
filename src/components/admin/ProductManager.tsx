@@ -447,6 +447,7 @@ const ProductManager = () => {
                           className="h-16 w-16 rounded-lg object-cover"
                           src={product.image_url || 'https://images.pexels.com/photos/4041392/pexels-photo-4041392.jpeg?auto=compress&cs=tinysrgb&w=400'}
                           alt={product.name}
+                          onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.pexels.com/photos/4041392/pexels-photo-4041392.jpeg?auto=compress&cs=tinysrgb&w=400'; }}
                         />
                       </div>
                       <div className="ml-4">
