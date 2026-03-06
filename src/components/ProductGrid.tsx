@@ -122,7 +122,7 @@ const ProductGrid: React.FC<ProductGridProps> = ({ searchTerm = '', categoryId =
         {/* Products grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {products.map((product) => (
-            <div key={product.id} className="bg-white dark:bg-gray-700 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 overflow-hidden group">
+            <div key={product.id} className="flex flex-col bg-white dark:bg-gray-700 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 overflow-hidden group">
               {/* Product image */}
               <div className="relative aspect-square overflow-hidden">
                 <img
@@ -134,7 +134,7 @@ const ProductGrid: React.FC<ProductGridProps> = ({ searchTerm = '', categoryId =
                 <button className="absolute top-3 right-3 p-2 bg-white dark:bg-gray-600 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-300 hover:bg-gray-50 dark:hover:bg-gray-500">
                   <Heart className="w-4 h-4 text-gray-600" />
                 </button>
-                
+
                 {/* Category badge */}
                 <div className="absolute top-3 left-3">
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${getCategoryColor(product.category?.name || '')}`}>
@@ -144,19 +144,19 @@ const ProductGrid: React.FC<ProductGridProps> = ({ searchTerm = '', categoryId =
               </div>
 
               {/* Product info */}
-              <div className="p-4">
+              <div className="flex flex-col flex-1 p-4">
                 <h3 className="font-semibold text-gray-900 dark:text-white mb-2 line-clamp-2">
                   {product.name}
                 </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-300 mb-3 line-clamp-2">
+                <p className="text-sm text-gray-600 dark:text-gray-300 mb-3 line-clamp-2 flex-1">
                   {product.description}
                 </p>
-                
-                <div className="flex items-center justify-between">
+
+                <div className="flex items-center justify-between mt-auto">
                   <span className="text-lg font-bold text-orange-500">
                     ${product.price.toLocaleString()}
                   </span>
-                  <button 
+                  <button
                     onClick={() => addItem({
                       id: product.id,
                       name: product.name,
