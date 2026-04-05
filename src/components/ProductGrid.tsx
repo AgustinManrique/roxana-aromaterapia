@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Heart, ShoppingCart, PackageSearch } from 'lucide-react';
+import { Heart, ShoppingCart, PackageSearch, Eye } from 'lucide-react';
 import { useCart } from '../contexts/CartContext';
 import { supabase, Product } from '../lib/supabase';
+import { getOptimizedImageUrl, getImageFallback } from '../lib/image';
+import ProductQuickView from './ProductQuickView';
 
 interface ProductGridProps {
   searchTerm?: string;
   categoryId?: string;
 }
 
-const FALLBACK_IMAGE = 'https://images.pexels.com/photos/4041392/pexels-photo-4041392.jpeg?auto=compress&cs=tinysrgb&w=400';
 const PAGE_SIZE = 24;
 
 const ProductGrid: React.FC<ProductGridProps> = ({ searchTerm = '', categoryId = 'all' }) => {
@@ -17,6 +18,7 @@ const ProductGrid: React.FC<ProductGridProps> = ({ searchTerm = '', categoryId =
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [quickView, setQuickView] = useState<Product | null>(null);
 
   useEffect(() => {
     fetchProducts(searchTerm, categoryId);
@@ -133,21 +135,23 @@ const ProductGrid: React.FC<ProductGridProps> = ({ searchTerm = '', categoryId =
               {visibleProducts.map((product, idx) => (
                 <article
                   key={product.id}
-                  className="group flex flex-col bg-white dark:bg-gray-800 rounded-2xl shadow-soft hover:shadow-soft-lg transition-all duration-300 overflow-hidden animate-fade-in-up"
+                  onClick={() => setQuickView(product)}
+                  className="group flex flex-col bg-white dark:bg-gray-800 rounded-2xl shadow-soft hover:shadow-soft-lg transition-all duration-300 overflow-hidden animate-fade-in-up cursor-pointer hover:-translate-y-1"
                   style={{ animationDelay: `${Math.min(idx * 30, 300)}ms` }}
                 >
                   {/* Image */}
                   <div className="relative aspect-square overflow-hidden bg-cream-200 dark:bg-gray-700">
                     <img
-                      src={product.image_url || FALLBACK_IMAGE}
+                      src={getOptimizedImageUrl(product.image_url, { width: 500, quality: 78 })}
                       alt={product.name}
                       loading="lazy"
                       decoding="async"
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
-                      onError={(e) => { (e.target as HTMLImageElement).src = FALLBACK_IMAGE; }}
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out"
+                      onError={(e) => { (e.target as HTMLImageElement).src = getImageFallback(); }}
                     />
                     <button
                       aria-label="Guardar"
+                      onClick={(e) => e.stopPropagation()}
                       className="absolute top-3 right-3 p-2 bg-white/90 backdrop-blur-sm dark:bg-gray-900/80 rounded-full shadow-soft opacity-0 group-hover:opacity-100 translate-y-1 group-hover:translate-y-0 transition-all duration-300 hover:bg-white"
                     >
                       <Heart className="w-4 h-4 text-gray-700 dark:text-gray-200" />
@@ -160,6 +164,14 @@ const ProductGrid: React.FC<ProductGridProps> = ({ searchTerm = '', categoryId =
                         </span>
                       </div>
                     )}
+
+                    {/* Hover overlay hint */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center pb-4 pointer-events-none">
+                      <span className="flex items-center space-x-1.5 px-3 py-1.5 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm rounded-full text-xs font-medium text-gray-900 dark:text-white shadow-soft">
+                        <Eye className="w-3.5 h-3.5" />
+                        <span>Ver detalles</span>
+                      </span>
+                    </div>
 
                     {product.stock === 0 && (
                       <div className="absolute inset-0 bg-white/70 dark:bg-gray-900/70 flex items-center justify-center">
@@ -183,12 +195,15 @@ const ProductGrid: React.FC<ProductGridProps> = ({ searchTerm = '', categoryId =
                       </span>
                       <button
                         disabled={product.stock === 0}
-                        onClick={() => addItem({
-                          id: product.id,
-                          name: product.name,
-                          price: product.price,
-                          image: product.image_url || FALLBACK_IMAGE
-                        })}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          addItem({
+                            id: product.id,
+                            name: product.name,
+                            price: product.price,
+                            image: product.image_url || getImageFallback()
+                          });
+                        }}
                         className="flex items-center space-x-1.5 bg-gray-900 dark:bg-brand-500 text-white px-3 py-2 rounded-full hover:bg-brand-600 dark:hover:bg-brand-600 transition-colors text-xs sm:text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed"
                       >
                         <ShoppingCart className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -214,6 +229,7 @@ const ProductGrid: React.FC<ProductGridProps> = ({ searchTerm = '', categoryId =
           </>
         )}
       </div>
+      <ProductQuickView product={quickView} onClose={() => setQuickView(null)} />
     </section>
   );
 };
