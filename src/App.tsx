@@ -13,6 +13,7 @@ import OrderHistory from './components/OrderHistory';
 import AuthCallback from './components/AuthCallback';
 import ResetPassword from './components/ResetPassword';
 import SetupNotice from './components/SetupNotice';
+import FeaturedCarousel from './components/FeaturedCarousel';
 import AdminLayout from './components/admin/AdminLayout';
 import ProductManager from './components/admin/ProductManager';
 import CategoryManager from './components/admin/CategoryManager';
@@ -35,6 +36,7 @@ const StoreLayout = () => {
         <SetupNotice />
       </div>
       <Hero />
+      <FeaturedCarousel />
       <SearchBar onSearch={handleSearch} />
       <ProductGrid searchTerm={searchTerm} categoryId={categoryId} />
       <InfoSection />

@@ -1,6 +1,5 @@
-import React from 'react';
-import { useState, useEffect } from 'react';
-import { Heart, ShoppingCart } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Heart, ShoppingCart, PackageSearch } from 'lucide-react';
 import { useCart } from '../contexts/CartContext';
 import { supabase, Product } from '../lib/supabase';
 
@@ -10,78 +9,73 @@ interface ProductGridProps {
 }
 
 const FALLBACK_IMAGE = 'https://images.pexels.com/photos/4041392/pexels-photo-4041392.jpeg?auto=compress&cs=tinysrgb&w=400';
+const PAGE_SIZE = 24;
 
 const ProductGrid: React.FC<ProductGridProps> = ({ searchTerm = '', categoryId = 'all' }) => {
   const { addItem } = useCart();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   useEffect(() => {
     fetchProducts(searchTerm, categoryId);
+    setVisibleCount(PAGE_SIZE);
   }, [searchTerm, categoryId]);
 
   const fetchProducts = async (search: string = '', category: string = 'all') => {
     try {
       setLoading(true);
-      
-      let query = supabase
-        .from('products')
-        .select(`
-          *,
-          category:categories(*)
-        `);
+      setError(null);
 
-      // Apply search filter
+      let query = supabase.from('products').select(`*, category:categories(*)`);
+
       if (search.trim()) {
         query = query.or(`name.ilike.%${search}%,description.ilike.%${search}%`);
       }
-
-      // Apply category filter
       if (category !== 'all') {
         query = query.eq('category_id', category);
       }
 
-      // Order by creation date
       query = query.order('created_at', { ascending: false });
 
       const { data, error } = await query;
-
       if (error) throw error;
       setProducts(data || []);
-    } catch (error) {
-      console.error('Error fetching products:', error);
+    } catch (err) {
+      console.error('Error fetching products:', err);
       setError('Error al cargar los productos');
     } finally {
       setLoading(false);
     }
   };
 
-  const getCategoryColor = (categoryName: string) => {
-    const palette = [
-      "bg-blue-100 text-blue-800",
-      "bg-green-100 text-green-800",
-      "bg-purple-100 text-purple-800",
-      "bg-pink-100 text-pink-800",
-      "bg-yellow-100 text-yellow-800",
-      "bg-indigo-100 text-indigo-800",
-      "bg-red-100 text-red-800",
-      "bg-teal-100 text-teal-800",
-    ];
-    // Generate a consistent index from the category name
-    let hash = 0;
-    for (let i = 0; i < categoryName.length; i++) {
-      hash = categoryName.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    return palette[Math.abs(hash) % palette.length];
-  };
+  const visibleProducts = useMemo(() => products.slice(0, visibleCount), [products, visibleCount]);
+  const hasMore = visibleCount < products.length;
 
   if (loading) {
     return (
-      <section className="py-12 bg-gray-50 dark:bg-gray-800">
+      <section className="py-16 bg-cream-100 dark:bg-gray-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+          <div className="mb-10">
+            <div className="h-8 w-64 bg-gray-200 dark:bg-gray-700 rounded animate-pulse mb-3" />
+            <div className="h-4 w-40 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="bg-white dark:bg-gray-800 rounded-2xl overflow-hidden shadow-soft">
+                <div className="aspect-square bg-gray-200 dark:bg-gray-700 animate-pulse" />
+                <div className="p-4 space-y-3">
+                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-3/4" />
+                  <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-full" />
+                  <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-1/2" />
+                  <div className="flex justify-between items-center pt-2">
+                    <div className="h-6 w-20 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+                    <div className="h-9 w-24 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -90,102 +84,136 @@ const ProductGrid: React.FC<ProductGridProps> = ({ searchTerm = '', categoryId =
 
   if (error) {
     return (
-      <section className="py-12 bg-gray-50 dark:bg-gray-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-            <button 
-              onClick={() => fetchProducts(searchTerm, categoryId)}
-              className="mt-4 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
-            >
-              Reintentar
-            </button>
-          </div>
+      <section className="py-16 bg-cream-100 dark:bg-gray-900">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <p className="text-red-600 dark:text-red-400">{error}</p>
+          <button
+            onClick={() => fetchProducts(searchTerm, categoryId)}
+            className="mt-4 px-5 py-2.5 bg-brand-500 text-white rounded-full hover:bg-brand-600 transition-colors font-medium"
+          >
+            Reintentar
+          </button>
         </div>
       </section>
     );
   }
 
   return (
-    <section className="py-12 bg-gray-50 dark:bg-gray-800">
+    <section id="productos" className="py-16 bg-cream-100 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section header */}
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Todos los productos</h2>
-          <p className="text-gray-600 dark:text-gray-300">
-            {products.length} producto{products.length !== 1 ? 's' : ''} encontrado{products.length !== 1 ? 's' : ''}
-            {searchTerm && ` para "${searchTerm}"`}
-            {categoryId !== 'all' && ` en la categoría seleccionada`}
-          </p>
-        </div>
-
-        {/* Products grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {products.map((product) => (
-            <div key={product.id} className="flex flex-col bg-white dark:bg-gray-700 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 overflow-hidden group">
-              {/* Product image */}
-              <div className="relative aspect-square overflow-hidden">
-                <img
-                  src={product.image_url || FALLBACK_IMAGE}
-                  alt={product.name}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                  onError={(e) => { (e.target as HTMLImageElement).src = FALLBACK_IMAGE; }}
-                />
-                <button className="absolute top-3 right-3 p-2 bg-white dark:bg-gray-600 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-300 hover:bg-gray-50 dark:hover:bg-gray-500">
-                  <Heart className="w-4 h-4 text-gray-600" />
-                </button>
-
-                {/* Category badge */}
-                <div className="absolute top-3 left-3">
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getCategoryColor(product.category?.name || '')}`}>
-                    {product.category?.name || 'Sin categoría'}
-                  </span>
-                </div>
-              </div>
-
-              {/* Product info */}
-              <div className="flex flex-col flex-1 p-4">
-                <h3 className="font-semibold text-gray-900 dark:text-white mb-2 line-clamp-2">
-                  {product.name}
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-300 mb-3 line-clamp-2 flex-1">
-                  {product.description}
-                </p>
-
-                <div className="flex items-center justify-between mt-auto">
-                  <span className="text-lg font-bold text-orange-500">
-                    ${product.price.toLocaleString()}
-                  </span>
-                  <button
-                    onClick={() => addItem({
-                      id: product.id,
-                      name: product.name,
-                      price: product.price,
-                      image: product.image_url || FALLBACK_IMAGE
-                    })}
-                    className="flex items-center space-x-1 bg-orange-500 text-white px-3 py-2 rounded-lg hover:bg-orange-600 transition-colors text-sm"
-                  >
-                    <ShoppingCart className="w-4 h-4" />
-                    <span>Agregar</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {products.length === 0 && !loading && (
-        <div className="text-center py-12">
-          <div className="mx-auto h-12 w-12 text-gray-400 mb-4">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-            </svg>
+        <div className="mb-10 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+          <div>
+            <h2 className="font-display text-3xl sm:text-4xl font-semibold text-gray-900 dark:text-white tracking-tight">
+              {searchTerm ? 'Resultados' : 'Nuestro catálogo'}
+            </h2>
+            <p className="mt-2 text-gray-600 dark:text-gray-400">
+              {products.length} producto{products.length !== 1 ? 's' : ''}
+              {searchTerm && ` para "${searchTerm}"`}
+            </p>
           </div>
-          <h3 className="text-lg font-medium text-gray-900 dark:text-white">No hay productos disponibles</h3>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Los productos aparecerán aquí una vez que sean agregados.</p>
+          <div className="h-px flex-1 bg-gray-200 dark:bg-gray-700 hidden sm:block sm:mx-6" />
         </div>
-      )}
+
+        {/* Empty state */}
+        {products.length === 0 ? (
+          <div className="text-center py-20">
+            <PackageSearch className="mx-auto h-14 w-14 text-gray-300 dark:text-gray-600" />
+            <h3 className="mt-4 font-display text-xl text-gray-900 dark:text-white">
+              No encontramos productos
+            </h3>
+            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+              {searchTerm ? 'Probá con otra búsqueda o categoría.' : 'Pronto vamos a tener novedades.'}
+            </p>
+          </div>
+        ) : (
+          <>
+            {/* Products grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+              {visibleProducts.map((product, idx) => (
+                <article
+                  key={product.id}
+                  className="group flex flex-col bg-white dark:bg-gray-800 rounded-2xl shadow-soft hover:shadow-soft-lg transition-all duration-300 overflow-hidden animate-fade-in-up"
+                  style={{ animationDelay: `${Math.min(idx * 30, 300)}ms` }}
+                >
+                  {/* Image */}
+                  <div className="relative aspect-square overflow-hidden bg-cream-200 dark:bg-gray-700">
+                    <img
+                      src={product.image_url || FALLBACK_IMAGE}
+                      alt={product.name}
+                      loading="lazy"
+                      decoding="async"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
+                      onError={(e) => { (e.target as HTMLImageElement).src = FALLBACK_IMAGE; }}
+                    />
+                    <button
+                      aria-label="Guardar"
+                      className="absolute top-3 right-3 p-2 bg-white/90 backdrop-blur-sm dark:bg-gray-900/80 rounded-full shadow-soft opacity-0 group-hover:opacity-100 translate-y-1 group-hover:translate-y-0 transition-all duration-300 hover:bg-white"
+                    >
+                      <Heart className="w-4 h-4 text-gray-700 dark:text-gray-200" />
+                    </button>
+
+                    {product.category && (
+                      <div className="absolute bottom-3 left-3">
+                        <span className="px-2.5 py-1 rounded-full text-[11px] font-medium bg-white/90 backdrop-blur-sm text-gray-800 dark:bg-gray-900/80 dark:text-gray-100">
+                          {product.category.name}
+                        </span>
+                      </div>
+                    )}
+
+                    {product.stock === 0 && (
+                      <div className="absolute inset-0 bg-white/70 dark:bg-gray-900/70 flex items-center justify-center">
+                        <span className="px-3 py-1 bg-gray-900 text-white text-xs font-medium rounded-full">Sin stock</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Info */}
+                  <div className="flex flex-col flex-1 p-4 sm:p-5">
+                    <h3 className="font-display text-base sm:text-lg font-semibold text-gray-900 dark:text-white line-clamp-2 leading-snug">
+                      {product.name}
+                    </h3>
+                    <p className="mt-1 text-xs sm:text-sm text-gray-500 dark:text-gray-400 line-clamp-2 flex-1">
+                      {product.description}
+                    </p>
+
+                    <div className="flex items-center justify-between mt-4">
+                      <span className="text-lg sm:text-xl font-semibold text-brand-600 dark:text-brand-400">
+                        ${product.price.toLocaleString()}
+                      </span>
+                      <button
+                        disabled={product.stock === 0}
+                        onClick={() => addItem({
+                          id: product.id,
+                          name: product.name,
+                          price: product.price,
+                          image: product.image_url || FALLBACK_IMAGE
+                        })}
+                        className="flex items-center space-x-1.5 bg-gray-900 dark:bg-brand-500 text-white px-3 py-2 rounded-full hover:bg-brand-600 dark:hover:bg-brand-600 transition-colors text-xs sm:text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        <ShoppingCart className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                        <span className="hidden sm:inline">Agregar</span>
+                      </button>
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+
+            {/* Load more */}
+            {hasMore && (
+              <div className="mt-12 flex justify-center">
+                <button
+                  onClick={() => setVisibleCount((v) => v + PAGE_SIZE)}
+                  className="px-8 py-3 bg-white dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 rounded-full font-medium hover:bg-brand-50 hover:border-brand-300 dark:hover:bg-gray-700 transition-colors shadow-soft"
+                >
+                  Ver más productos ({products.length - visibleCount} restantes)
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </section>
   );
 };
