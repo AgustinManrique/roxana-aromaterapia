@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { User, LogIn, UserPlus, LogOut, Settings, ShoppingBag } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 
 const UserMenu = () => {
+  const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -365,7 +367,7 @@ const UserMenu = () => {
                   <div className="space-y-2">
                     <button 
                       onClick={() => {
-                        window.dispatchEvent(new CustomEvent('showOrderHistory'));
+                        navigate('/orders');
                         setIsOpen(false);
                       }}
                       className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"

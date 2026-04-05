@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { ShoppingCart, Sun, Moon, Settings } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useCart } from '../contexts/CartContext';
@@ -15,49 +16,39 @@ const Header = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <div className="flex items-center space-x-3">
-            <img 
-              src="/logo.png" 
-              alt="Roxana Aromaterapia Logo" 
+          <Link to="/" className="flex items-center space-x-3">
+            <img
+              src="/logo.png"
+              alt="Roxana Aromaterapia Logo"
               className="w-8 h-8 object-contain hidden sm:block"
             />
             <div>
               <span className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">Roxana</span>
               <span className="text-lg sm:text-xl font-light text-orange-500 ml-1">Aromaterapia</span>
             </div>
-          </div>
+          </Link>
 
           {/* Right side icons */}
           <div className="flex items-center space-x-1 sm:space-x-3">
             {isAdmin && (
-              <div className="flex items-center space-x-1">
-                <button 
-                  onClick={() => window.dispatchEvent(new Event('showAdminOrders'))}
-                  className="p-2 sm:px-3 sm:py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium"
-                  title="Gestión de Pedidos"
-                >
-                  <ShoppingCart className="w-4 h-4 sm:hidden" />
-                  <span className="hidden sm:inline">Pedidos</span>
-                </button>
-                <button 
-                  onClick={() => window.dispatchEvent(new Event('toggleAdminPanel'))}
-                  className="p-2 sm:px-3 sm:py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm font-medium"
-                  title="Panel de Administración"
-                >
-                  <Settings className="w-4 h-4 sm:hidden" />
-                  <span className="hidden sm:inline">Admin</span>
-                </button>
-              </div>
+              <Link
+                to="/admin"
+                className="p-2 sm:px-3 sm:py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm font-medium flex items-center"
+                title="Panel de Administración"
+              >
+                <Settings className="w-4 h-4 sm:hidden" />
+                <span className="hidden sm:inline">Admin</span>
+              </Link>
             )}
             <UserMenu />
-            <button 
+            <button
               onClick={toggleTheme}
               className="p-2 text-orange-500 hover:text-orange-600 dark:text-orange-400 dark:hover:text-orange-300 transition-colors"
               aria-label="Cambiar tema"
             >
               {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </button>
-            <button 
+            <button
               onClick={openCart}
               className="p-2 text-orange-500 hover:text-orange-600 dark:text-orange-400 dark:hover:text-orange-300 transition-colors relative"
             >
