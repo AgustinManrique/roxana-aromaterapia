@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { Plus } from 'lucide-react';
 import { useAuth } from './contexts/AuthContext';
 import Header from './components/Header';
 import Hero from './components/Hero';
@@ -20,7 +21,25 @@ import CategoryManager from './components/admin/CategoryManager';
 import StatsPanel from './components/admin/StatsPanel';
 import OrderManager from './components/admin/OrderManager';
 
+const AdminFab = () => {
+  const navigate = useNavigate();
+  return (
+    <button
+      onClick={() => navigate('/admin/products?new=1')}
+      className="fixed bottom-6 right-6 bg-orange-500 hover:bg-orange-600 text-white p-4 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 z-50 group"
+      aria-label="Nuevo producto"
+    >
+      <Plus className="w-6 h-6" />
+      <div className="absolute right-full mr-3 top-1/2 transform -translate-y-1/2 bg-gray-900 text-white px-3 py-2 rounded-lg text-sm whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
+        Nuevo producto
+        <div className="absolute left-full top-1/2 transform -translate-y-1/2 border-4 border-transparent border-l-gray-900"></div>
+      </div>
+    </button>
+  );
+};
+
 const StoreLayout = () => {
+  const { isAdmin } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryId, setCategoryId] = useState('all');
 
@@ -41,23 +60,26 @@ const StoreLayout = () => {
       <ProductGrid searchTerm={searchTerm} categoryId={categoryId} />
       <InfoSection />
       <Footer />
-      <WhatsAppButton />
+      {isAdmin ? <AdminFab /> : <WhatsAppButton />}
       <CartSidebar />
     </div>
   );
 };
 
-const OrdersPage = () => (
-  <div className="min-h-screen bg-white dark:bg-gray-900 transition-colors">
-    <Header />
-    <div className="pt-8">
-      <OrderHistory />
+const OrdersPage = () => {
+  const { isAdmin } = useAuth();
+  return (
+    <div className="min-h-screen bg-white dark:bg-gray-900 transition-colors">
+      <Header />
+      <div className="pt-8">
+        <OrderHistory />
+      </div>
+      <Footer />
+      {isAdmin ? <AdminFab /> : <WhatsAppButton />}
+      <CartSidebar />
     </div>
-    <Footer />
-    <WhatsAppButton />
-    <CartSidebar />
-  </div>
-);
+  );
+};
 
 function App() {
   const { loading } = useAuth();

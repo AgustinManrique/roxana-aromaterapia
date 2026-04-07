@@ -94,6 +94,9 @@ const CartSidebar = () => {
                         <h3 className="font-medium text-gray-900 dark:text-white text-sm">
                           {item.name}
                         </h3>
+                        {item.variant && (
+                          <span className="text-xs text-gray-500 dark:text-gray-400">{item.variant}</span>
+                        )}
                         <p className="text-orange-500 font-semibold">
                           ${item.price.toLocaleString()}
                         </p>
@@ -101,7 +104,7 @@ const CartSidebar = () => {
                         {/* Quantity Controls */}
                         <div className="flex items-center space-x-2 mt-2">
                           <button
-                            onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                            onClick={() => updateQuantity(item.id, item.quantity - 1, item.variant)}
                             className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
                           >
                             <Minus className="w-4 h-4 text-gray-600 dark:text-gray-400" />
@@ -110,7 +113,7 @@ const CartSidebar = () => {
                             {item.quantity}
                           </span>
                           <button
-                            onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                            onClick={() => updateQuantity(item.id, item.quantity + 1, item.variant)}
                             className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
                           >
                             <Plus className="w-4 h-4 text-gray-600 dark:text-gray-400" />
@@ -120,7 +123,7 @@ const CartSidebar = () => {
 
                       {/* Remove Button */}
                       <button
-                        onClick={() => removeItem(item.id)}
+                        onClick={() => removeItem(item.id, item.variant)}
                         className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-colors"
                       >
                         <Trash2 className="w-4 h-4" />

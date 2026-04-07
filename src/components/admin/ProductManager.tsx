@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Edit, Trash2, X, Package, Search, AlertTriangle, PackageX, Tag as TagIcon, ChevronDown } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { Plus, Edit, Trash2, X, Package, Search, AlertTriangle, PackageX, Tag as TagIcon, Image as ImageIcon, Upload } from 'lucide-react';
 import { supabase, Product, Category } from '../../lib/supabase';
 
 type FilterKey = 'all' | 'out-of-stock' | 'low-stock' | 'no-category';
@@ -8,12 +9,12 @@ const LOW_STOCK_THRESHOLD = 5;
 const FALLBACK_IMG = 'https://images.pexels.com/photos/4041392/pexels-photo-4041392.jpeg?auto=compress&cs=tinysrgb&w=400';
 
 const ProductManager = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [imageFile, setImageFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
 
   // Search & filters
@@ -33,6 +34,15 @@ const ProductManager = () => {
   const [newCategoryName, setNewCategoryName] = useState('');
   const [creatingCategory, setCreatingCategory] = useState(false);
 
+  // Multi-image state
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [existingImages, setExistingImages] = useState<string[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Variants state
+  const [variants, setVariants] = useState<string[]>([]);
+  const [variantInput, setVariantInput] = useState('');
+
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -46,6 +56,14 @@ const ProductManager = () => {
     fetchProducts();
     fetchCategories();
   }, []);
+
+  // Auto-open form when navigated with ?new=1
+  useEffect(() => {
+    if (searchParams.get('new') === '1') {
+      setShowForm(true);
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const fetchProducts = async () => {
     try {
@@ -222,20 +240,58 @@ const ProductManager = () => {
     return data.publicUrl;
   };
 
+  const handleAddImages = (files: FileList | null) => {
+    if (!files) return;
+    const newFiles = Array.from(files);
+    setImageFiles(prev => [...prev, ...newFiles]);
+  };
+
+  const removeNewImage = (index: number) => {
+    setImageFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const removeExistingImage = (index: number) => {
+    setExistingImages(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const addVariant = () => {
+    const trimmed = variantInput.trim();
+    if (trimmed && !variants.includes(trimmed)) {
+      setVariants(prev => [...prev, trimmed]);
+    }
+    setVariantInput('');
+  };
+
+  const removeVariant = (index: number) => {
+    setVariants(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setUploading(true);
     try {
-      let imageUrl = formData.image_url;
-      if (imageFile) imageUrl = await uploadImage(imageFile);
+      // Upload new image files
+      const uploadedUrls: string[] = [];
+      for (const file of imageFiles) {
+        const url = await uploadImage(file);
+        uploadedUrls.push(url);
+      }
+
+      // Combine existing + newly uploaded
+      const allImages = [...existingImages, ...uploadedUrls];
+      const primaryImage = allImages[0] || formData.image_url || '';
+
       const productData = {
         name: formData.name,
         description: formData.description,
         price: parseFloat(formData.price),
         stock: parseInt(formData.stock),
         category_id: formData.category_id || null,
-        image_url: imageUrl
+        image_url: primaryImage,
+        images: allImages,
+        variants: variants,
       };
+
       if (editingProduct) {
         const { error } = await supabase.from('products').update(productData).eq('id', editingProduct.id);
         if (error) throw error;
@@ -263,6 +319,11 @@ const ProductManager = () => {
       category_id: product.category_id || '',
       image_url: product.image_url
     });
+    // Load existing images and variants
+    const imgs = Array.isArray(product.images) ? product.images : [];
+    setExistingImages(imgs.length > 0 ? imgs : product.image_url ? [product.image_url] : []);
+    setVariants(Array.isArray(product.variants) ? product.variants : []);
+    setImageFiles([]);
     setShowForm(true);
   };
 
@@ -281,7 +342,10 @@ const ProductManager = () => {
   const resetForm = () => {
     setFormData({ name: '', description: '', price: '', stock: '', category_id: '', image_url: '' });
     setEditingProduct(null);
-    setImageFile(null);
+    setImageFiles([]);
+    setExistingImages([]);
+    setVariants([]);
+    setVariantInput('');
     setShowForm(false);
     setShowNewCategory(false);
     setNewCategoryName('');
@@ -304,6 +368,8 @@ const ProductManager = () => {
     }
     return <span className="text-sm text-gray-900 dark:text-white">{stock}</span>;
   };
+
+  const totalPreviewImages = existingImages.length + imageFiles.length;
 
   return (
     <div className="space-y-6">
@@ -431,9 +497,93 @@ const ProductManager = () => {
         </div>
       )}
 
-      {/* Products Table */}
+      {/* Products - Cards on mobile, Table on desktop */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* Select all bar */}
+        <div className="px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700 flex items-center space-x-3">
+          <input
+            type="checkbox"
+            checked={allVisibleSelected}
+            ref={(el) => { if (el) el.indeterminate = !allVisibleSelected && someVisibleSelected; }}
+            onChange={toggleSelectAll}
+            className="rounded border-gray-300 text-orange-500 focus:ring-orange-500"
+          />
+          <span className="text-xs text-gray-500 dark:text-gray-400">Seleccionar todos</span>
+        </div>
+
+        {/* Mobile card list */}
+        <div className="md:hidden divide-y divide-gray-200 dark:divide-gray-700">
+          {filteredProducts.map((product) => {
+            const imgCount = Array.isArray(product.images) ? product.images.length : 0;
+            const varCount = Array.isArray(product.variants) ? product.variants.length : 0;
+            return (
+              <div
+                key={product.id}
+                className={`p-3 flex items-start space-x-3 ${
+                  selected.has(product.id) ? 'bg-orange-50/50 dark:bg-orange-900/10' : ''
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={selected.has(product.id)}
+                  onChange={() => toggleSelect(product.id)}
+                  className="rounded border-gray-300 text-orange-500 focus:ring-orange-500 mt-1 min-w-[20px]"
+                />
+                <div className="relative flex-shrink-0" onClick={() => handleEdit(product)}>
+                  <img
+                    className="h-16 w-16 rounded-lg object-cover"
+                    src={product.image_url || FALLBACK_IMG}
+                    alt={product.name}
+                    loading="lazy"
+                    onError={(e) => { (e.target as HTMLImageElement).src = FALLBACK_IMG; }}
+                  />
+                  {imgCount > 1 && (
+                    <span className="absolute -top-1 -right-1 bg-blue-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                      {imgCount}
+                    </span>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0" onClick={() => handleEdit(product)}>
+                  <div className="text-sm font-medium text-gray-900 dark:text-white truncate">{product.name}</div>
+                  <div className="flex items-center space-x-2 mt-1">
+                    <span className="text-sm font-semibold text-gray-900 dark:text-white">${product.price.toLocaleString()}</span>
+                    {stockBadge(product.stock)}
+                  </div>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {product.category && (
+                      <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                        {product.category.name}
+                      </span>
+                    )}
+                    {varCount > 0 && product.variants!.slice(0, 2).map((v, i) => (
+                      <span key={i} className="px-1.5 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-[10px] rounded-full">{v}</span>
+                    ))}
+                    {varCount > 2 && <span className="text-[10px] text-gray-400">+{varCount - 2}</span>}
+                  </div>
+                </div>
+                <div className="flex flex-col space-y-1 flex-shrink-0">
+                  <button
+                    onClick={() => handleEdit(product)}
+                    className="p-2 text-gray-500 hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-lg transition-colors min-w-[40px] min-h-[40px] flex items-center justify-center"
+                    title="Editar"
+                  >
+                    <Edit className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(product.id)}
+                    className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors min-w-[40px] min-h-[40px] flex items-center justify-center"
+                    title="Eliminar"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Desktop table */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
             <thead className="bg-gray-50 dark:bg-gray-700/50">
               <tr>
@@ -454,71 +604,92 @@ const ProductManager = () => {
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-              {filteredProducts.map((product) => (
-                <tr
-                  key={product.id}
-                  className={`hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors ${
-                    selected.has(product.id) ? 'bg-orange-50/50 dark:bg-orange-900/10' : ''
-                  }`}
-                >
-                  <td className="px-4 py-3">
-                    <input
-                      type="checkbox"
-                      checked={selected.has(product.id)}
-                      onChange={() => toggleSelect(product.id)}
-                      className="rounded border-gray-300 text-orange-500 focus:ring-orange-500"
-                    />
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center">
-                      <img
-                        className="flex-shrink-0 h-12 w-12 rounded-lg object-cover"
-                        src={product.image_url || FALLBACK_IMG}
-                        alt={product.name}
-                        loading="lazy"
-                        onError={(e) => { (e.target as HTMLImageElement).src = FALLBACK_IMG; }}
+              {filteredProducts.map((product) => {
+                const imgCount = Array.isArray(product.images) ? product.images.length : 0;
+                const varCount = Array.isArray(product.variants) ? product.variants.length : 0;
+                return (
+                  <tr
+                    key={product.id}
+                    className={`hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors ${
+                      selected.has(product.id) ? 'bg-orange-50/50 dark:bg-orange-900/10' : ''
+                    }`}
+                  >
+                    <td className="px-4 py-3">
+                      <input
+                        type="checkbox"
+                        checked={selected.has(product.id)}
+                        onChange={() => toggleSelect(product.id)}
+                        className="rounded border-gray-300 text-orange-500 focus:ring-orange-500"
                       />
-                      <div className="ml-3 min-w-0">
-                        <div className="text-sm font-medium text-gray-900 dark:text-white truncate max-w-xs">{product.name}</div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-xs">{product.description}</div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center">
+                        <div className="relative flex-shrink-0">
+                          <img
+                            className="h-12 w-12 rounded-lg object-cover"
+                            src={product.image_url || FALLBACK_IMG}
+                            alt={product.name}
+                            loading="lazy"
+                            onError={(e) => { (e.target as HTMLImageElement).src = FALLBACK_IMG; }}
+                          />
+                          {imgCount > 1 && (
+                            <span className="absolute -top-1 -right-1 bg-blue-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                              {imgCount}
+                            </span>
+                          )}
+                        </div>
+                        <div className="ml-3 min-w-0">
+                          <div className="text-sm font-medium text-gray-900 dark:text-white truncate max-w-xs">{product.name}</div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-xs">{product.description}</div>
+                          {varCount > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {product.variants!.slice(0, 3).map((v, i) => (
+                                <span key={i} className="px-1.5 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-[10px] rounded-full">{v}</span>
+                              ))}
+                              {varCount > 3 && (
+                                <span className="text-[10px] text-gray-400">+{varCount - 3}</span>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    {product.category ? (
-                      <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
-                        {product.category.name}
-                      </span>
-                    ) : (
-                      <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-700 dark:bg-gray-600 dark:text-gray-200">
-                        Sin categoría
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                    ${product.price.toLocaleString()}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">{stockBadge(product.stock)}</td>
-                  <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
-                    <div className="flex items-center justify-end space-x-1">
-                      <button
-                        onClick={() => handleEdit(product)}
-                        className="p-2 text-gray-500 hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-lg transition-colors"
-                        title="Editar"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(product.id)}
-                        className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                        title="Eliminar"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      {product.category ? (
+                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                          {product.category.name}
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-700 dark:bg-gray-600 dark:text-gray-200">
+                          Sin categoría
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                      ${product.price.toLocaleString()}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">{stockBadge(product.stock)}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
+                      <div className="flex items-center justify-end space-x-1">
+                        <button
+                          onClick={() => handleEdit(product)}
+                          className="p-2 text-gray-500 hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-lg transition-colors"
+                          title="Editar"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(product.id)}
+                          className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                          title="Eliminar"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -536,24 +707,25 @@ const ProductManager = () => {
         )}
       </div>
 
-      {/* Product Form - Side Drawer */}
+      {/* Product Form - Full-screen on mobile, side drawer on desktop */}
       {showForm && (
         <div className="fixed inset-0 z-50 flex">
           <div className="fixed inset-0 bg-black/50" onClick={resetForm} />
-          <div className="relative ml-auto w-full max-w-lg bg-white dark:bg-gray-800 h-full shadow-2xl overflow-y-auto animate-in slide-in-from-right">
-            <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex justify-between items-center z-10">
+          <div className="relative ml-auto w-full sm:max-w-lg bg-white dark:bg-gray-800 h-full shadow-2xl overflow-y-auto animate-in slide-in-from-right">
+            <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 sm:px-6 py-4 flex justify-between items-center z-10">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                 {editingProduct ? 'Editar producto' : 'Nuevo producto'}
               </h3>
               <button
                 onClick={resetForm}
-                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full"
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full min-w-[44px] min-h-[44px] flex items-center justify-center"
               >
                 <X className="w-5 h-5 text-gray-500" />
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+            <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-5">
+              {/* Name */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Nombre</label>
                 <input
@@ -561,21 +733,23 @@ const ProductManager = () => {
                   required
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  className="w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-base"
                 />
               </div>
 
+              {/* Description */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Descripción</label>
                 <textarea
                   rows={3}
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  className="w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-base"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              {/* Price + Stock - stacked on very small screens */}
+              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Precio ($)</label>
                   <input
@@ -585,7 +759,7 @@ const ProductManager = () => {
                     required
                     value={formData.price}
                     onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    className="w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-base"
                   />
                 </div>
                 <div>
@@ -596,18 +770,19 @@ const ProductManager = () => {
                     required
                     value={formData.stock}
                     onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    className="w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-base"
                   />
                 </div>
               </div>
 
+              {/* Category */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Categoría</label>
                 <div className="flex items-center space-x-2">
                   <select
                     value={formData.category_id}
                     onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
-                    className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    className="flex-1 px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-base"
                   >
                     <option value="">Sin categoría</option>
                     {categories.map((category) => (
@@ -617,7 +792,7 @@ const ProductManager = () => {
                   <button
                     type="button"
                     onClick={() => setShowNewCategory(!showNewCategory)}
-                    className="flex-shrink-0 p-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600"
+                    className="flex-shrink-0 p-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 min-w-[44px] min-h-[44px] flex items-center justify-center"
                     title="Crear nueva categoría"
                   >
                     <Plus className="w-5 h-5" />
@@ -631,21 +806,21 @@ const ProductManager = () => {
                       onChange={(e) => setNewCategoryName(e.target.value)}
                       onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleCreateCategory(); } }}
                       placeholder="Nombre de la categoría"
-                      className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                      className="flex-1 px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-base"
                       autoFocus
                     />
                     <button
                       type="button"
                       onClick={handleCreateCategory}
                       disabled={creatingCategory || !newCategoryName.trim()}
-                      className="px-3 py-2 bg-green-500 text-white text-sm rounded-lg hover:bg-green-600 disabled:opacity-50"
+                      className="px-4 py-3 bg-green-500 text-white text-sm rounded-lg hover:bg-green-600 disabled:opacity-50 min-h-[44px]"
                     >
                       {creatingCategory ? '...' : 'Crear'}
                     </button>
                     <button
                       type="button"
                       onClick={() => { setShowNewCategory(false); setNewCategoryName(''); }}
-                      className="p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+                      className="p-3 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg min-w-[44px] min-h-[44px] flex items-center justify-center"
                     >
                       <X className="w-4 h-4" />
                     </button>
@@ -653,38 +828,133 @@ const ProductManager = () => {
                 )}
               </div>
 
+              {/* Images - Multi-upload */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Imagen</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  onChange={(e) => setImageFile(e.target.files?.[0] || null)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
-                />
-                {(formData.image_url || imageFile) && (
-                  <div className="mt-2">
-                    <img
-                      src={imageFile ? URL.createObjectURL(imageFile) : formData.image_url}
-                      alt="Preview"
-                      className="w-32 h-32 object-cover rounded-lg"
-                    />
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                  <div className="flex items-center space-x-1">
+                    <ImageIcon className="w-4 h-4" />
+                    <span>Fotos ({totalPreviewImages})</span>
+                  </div>
+                </label>
+
+                {/* Image thumbnails grid */}
+                {totalPreviewImages > 0 && (
+                  <div className="grid grid-cols-4 gap-2 mb-3">
+                    {existingImages.map((url, i) => (
+                      <div key={`existing-${i}`} className="relative aspect-square rounded-lg overflow-hidden border-2 border-gray-200 dark:border-gray-600 group">
+                        <img src={url} alt="" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = FALLBACK_IMG; }} />
+                        {i === 0 && (
+                          <span className="absolute top-0.5 left-0.5 bg-orange-500 text-white text-[9px] px-1 rounded">Principal</span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => removeExistingImage(i)}
+                          className="absolute top-0.5 right-0.5 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                    {imageFiles.map((file, i) => (
+                      <div key={`new-${i}`} className="relative aspect-square rounded-lg overflow-hidden border-2 border-blue-300 dark:border-blue-600 group">
+                        <img src={URL.createObjectURL(file)} alt="" className="w-full h-full object-cover" />
+                        <span className="absolute bottom-0.5 left-0.5 bg-blue-500 text-white text-[9px] px-1 rounded">Nueva</span>
+                        <button
+                          type="button"
+                          onClick={() => removeNewImage(i)}
+                          className="absolute top-0.5 right-0.5 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
                   </div>
                 )}
+
+                {/* Upload button - large tap target for mobile */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  capture="environment"
+                  onChange={(e) => handleAddImages(e.target.files)}
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full flex items-center justify-center space-x-2 py-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-gray-500 dark:text-gray-400 hover:border-orange-400 hover:text-orange-500 transition-colors min-h-[56px]"
+                >
+                  <Upload className="w-5 h-5" />
+                  <span className="text-sm font-medium">Agregar fotos</span>
+                </button>
               </div>
 
-              <div className="flex space-x-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+              {/* Variants - Tag input */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                  Variantes <span className="font-normal text-gray-400">(ej: sabores, colores)</span>
+                </label>
+
+                {variants.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {variants.map((v, i) => (
+                      <span
+                        key={i}
+                        className="inline-flex items-center space-x-1 px-3 py-1.5 bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-200 rounded-full text-sm"
+                      >
+                        <span>{v}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeVariant(i)}
+                          className="ml-1 hover:text-red-600 transition-colors"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="text"
+                    value={variantInput}
+                    onChange={(e) => setVariantInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        addVariant();
+                      }
+                    }}
+                    placeholder="Escribí una variante y presioná Enter"
+                    className="flex-1 px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-base"
+                  />
+                  <button
+                    type="button"
+                    onClick={addVariant}
+                    disabled={!variantInput.trim()}
+                    className="px-4 py-3 bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:opacity-50 min-h-[44px] min-w-[44px] flex items-center justify-center"
+                  >
+                    <Plus className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Submit */}
+              <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
                 <button
                   type="submit"
                   disabled={uploading}
-                  className="flex-1 bg-orange-500 text-white py-2.5 px-4 rounded-lg hover:bg-orange-600 disabled:opacity-50 font-medium"
+                  className="flex-1 bg-orange-500 text-white py-3.5 px-4 rounded-lg hover:bg-orange-600 disabled:opacity-50 font-medium text-base min-h-[48px]"
                 >
                   {uploading ? 'Guardando...' : editingProduct ? 'Actualizar' : 'Crear producto'}
                 </button>
                 <button
                   type="button"
                   onClick={resetForm}
-                  className="px-4 py-2.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+                  className="px-4 py-3.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 min-h-[48px]"
                 >
                   Cancelar
                 </button>

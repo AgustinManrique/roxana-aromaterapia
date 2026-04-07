@@ -123,7 +123,10 @@ const FeaturedCarousel: React.FC = () => {
               >
                 <div className="relative aspect-square overflow-hidden bg-cream-200 dark:bg-gray-700">
                   <img
-                    src={getOptimizedImageUrl(product.image_url, { width: 500, quality: 78 })}
+                    src={getOptimizedImageUrl(
+                      (Array.isArray(product.images) && product.images.length > 0 ? product.images[0] : product.image_url),
+                      { width: 500, quality: 78 }
+                    )}
                     alt={product.name}
                     loading="lazy"
                     decoding="async"

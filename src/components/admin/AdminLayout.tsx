@@ -1,6 +1,6 @@
 import React from 'react';
-import { Link, NavLink, Navigate, Outlet, useLocation } from 'react-router-dom';
-import { Package, Tag, BarChart3, ShoppingBag, ArrowLeft, Menu, X } from 'lucide-react';
+import { Link, NavLink, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Package, Tag, BarChart3, ShoppingBag, ArrowLeft, Menu, X, Plus } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
 const navItems = [
@@ -13,6 +13,7 @@ const navItems = [
 const AdminLayout = () => {
   const { isAdmin, loading } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = React.useState(false);
 
   React.useEffect(() => {
@@ -127,6 +128,15 @@ const AdminLayout = () => {
           <Outlet />
         </div>
       </main>
+
+      {/* Floating + button for quick new product */}
+      <button
+        onClick={() => navigate('/admin/products?new=1')}
+        className="fixed bottom-6 right-6 bg-orange-500 hover:bg-orange-600 text-white p-4 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 z-50 lg:hidden"
+        aria-label="Nuevo producto"
+      >
+        <Plus className="w-6 h-6" />
+      </button>
     </div>
   );
 };

@@ -6,14 +6,15 @@ interface CartItem {
   price: number;
   image: string;
   quantity: number;
+  variant?: string;
 }
 
 interface CartContextType {
   items: CartItem[];
   isOpen: boolean;
   addItem: (product: Omit<CartItem, 'quantity'>) => void;
-  removeItem: (id: string) => void;
-  updateQuantity: (id: string, quantity: number) => void;
+  removeItem: (id: string, variant?: string) => void;
+  updateQuantity: (id: string, quantity: number, variant?: string) => void;
   clearCart: () => void;
   openCart: () => void;
   closeCart: () => void;
@@ -40,12 +41,15 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem('cart', JSON.stringify(items));
   }, [items]);
 
+  const getCartKey = (id: string, variant?: string) => variant ? `${id}::${variant}` : id;
+
   const addItem = (product: Omit<CartItem, 'quantity'>) => {
     setItems(prevItems => {
-      const existingItem = prevItems.find(item => item.id === product.id);
+      const key = getCartKey(product.id, product.variant);
+      const existingItem = prevItems.find(item => getCartKey(item.id, item.variant) === key);
       if (existingItem) {
         return prevItems.map(item =>
-          item.id === product.id
+          getCartKey(item.id, item.variant) === key
             ? { ...item, quantity: item.quantity + 1 }
             : item
         );
@@ -54,18 +58,20 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
 
-  const removeItem = (id: string) => {
-    setItems(prevItems => prevItems.filter(item => item.id !== id));
+  const removeItem = (id: string, variant?: string) => {
+    const key = getCartKey(id, variant);
+    setItems(prevItems => prevItems.filter(item => getCartKey(item.id, item.variant) !== key));
   };
 
-  const updateQuantity = (id: string, quantity: number) => {
+  const updateQuantity = (id: string, quantity: number, variant?: string) => {
     if (quantity <= 0) {
-      removeItem(id);
+      removeItem(id, variant);
       return;
     }
+    const key = getCartKey(id, variant);
     setItems(prevItems =>
       prevItems.map(item =>
-        item.id === id ? { ...item, quantity } : item
+        getCartKey(item.id, item.variant) === key ? { ...item, quantity } : item
       )
     );
   };

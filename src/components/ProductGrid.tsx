@@ -142,7 +142,10 @@ const ProductGrid: React.FC<ProductGridProps> = ({ searchTerm = '', categoryId =
                   {/* Image */}
                   <div className="relative aspect-square overflow-hidden bg-cream-200 dark:bg-gray-700">
                     <img
-                      src={getOptimizedImageUrl(product.image_url, { width: 500, quality: 78 })}
+                      src={getOptimizedImageUrl(
+                        (Array.isArray(product.images) && product.images.length > 0 ? product.images[0] : product.image_url),
+                        { width: 500, quality: 78 }
+                      )}
                       alt={product.name}
                       loading="lazy"
                       decoding="async"
@@ -157,13 +160,23 @@ const ProductGrid: React.FC<ProductGridProps> = ({ searchTerm = '', categoryId =
                       <Heart className="w-4 h-4 text-gray-700 dark:text-gray-200" />
                     </button>
 
-                    {product.category && (
-                      <div className="absolute bottom-3 left-3">
+                    <div className="absolute bottom-3 left-3 flex flex-wrap gap-1">
+                      {product.category && (
                         <span className="px-2.5 py-1 rounded-full text-[11px] font-medium bg-white/90 backdrop-blur-sm text-gray-800 dark:bg-gray-900/80 dark:text-gray-100">
                           {product.category.name}
                         </span>
-                      </div>
-                    )}
+                      )}
+                      {Array.isArray(product.images) && product.images.length > 1 && (
+                        <span className="px-2 py-1 rounded-full text-[11px] font-medium bg-blue-500/90 backdrop-blur-sm text-white">
+                          +{product.images.length - 1} fotos
+                        </span>
+                      )}
+                      {Array.isArray(product.variants) && product.variants.length > 0 && (
+                        <span className="px-2 py-1 rounded-full text-[11px] font-medium bg-purple-500/90 backdrop-blur-sm text-white">
+                          {product.variants.length} variantes
+                        </span>
+                      )}
+                    </div>
 
                     {/* Hover overlay hint */}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center pb-4 pointer-events-none">

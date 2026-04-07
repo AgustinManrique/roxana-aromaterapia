@@ -38,6 +38,8 @@ export interface Product {
   price: number;
   stock: number;
   image_url: string;
+  images?: string[];
+  variants?: string[];
   category_id: string | null;
   created_at: string;
   updated_at: string;
