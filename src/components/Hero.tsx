@@ -1,48 +1,24 @@
 import React, { useEffect, useState } from 'react';
 import { Instagram, Facebook, ArrowRight } from 'lucide-react';
-import { supabase, Product } from '../lib/supabase';
-import { getOptimizedImageUrl } from '../lib/image';
 
 const ROTATE_INTERVAL = 5000;
 
+const HERO_BACKGROUNDS = [
+  '/img/WhatsApp%20Image%202026-04-06%20at%207.07.55%20PM.jpeg',
+  '/img/WhatsApp%20Image%202026-04-06%20at%207.07.55%20PM%20(1).jpeg',
+  '/img/WhatsApp%20Image%202026-04-06%20at%207.07.56%20PM.jpeg',
+  '/img/WhatsApp%20Image%202026-04-06%20at%207.07.56%20PM%20(1).jpeg',
+];
+
 const Hero = () => {
-  const [backgrounds, setBackgrounds] = useState<string[]>([]);
   const [activeIdx, setActiveIdx] = useState(0);
 
   useEffect(() => {
-    const fetchBgProducts = async () => {
-      try {
-        const { data } = await supabase
-          .from('products')
-          .select('image_url')
-          .not('image_url', 'is', null)
-          .gt('stock', 0)
-          .order('created_at', { ascending: false })
-          .limit(20);
-
-        if (data && data.length > 0) {
-          // Shuffle and pick a few
-          const shuffled = [...data].sort(() => Math.random() - 0.5).slice(0, 6);
-          const urls = shuffled
-            .map((p) => p.image_url as string)
-            .filter(Boolean)
-            .map((u) => getOptimizedImageUrl(u, { width: 1600, quality: 70, blur: 2 }));
-          setBackgrounds(urls);
-        }
-      } catch (e) {
-        console.error('Error fetching hero backgrounds:', e);
-      }
-    };
-    fetchBgProducts();
-  }, []);
-
-  useEffect(() => {
-    if (backgrounds.length < 2) return;
     const interval = setInterval(() => {
-      setActiveIdx((i) => (i + 1) % backgrounds.length);
+      setActiveIdx((i) => (i + 1) % HERO_BACKGROUNDS.length);
     }, ROTATE_INTERVAL);
     return () => clearInterval(interval);
-  }, [backgrounds.length]);
+  }, []);
 
   const scrollToProducts = () => {
     const el = document.getElementById('productos');
@@ -52,7 +28,7 @@ const Hero = () => {
   return (
     <section className="relative overflow-hidden bg-gradient-to-br from-cream-100 via-cream-50 to-brand-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800">
       {/* Rotating background images */}
-      {backgrounds.map((url, i) => (
+      {HERO_BACKGROUNDS.map((url, i) => (
         <div
           key={url + i}
           aria-hidden
